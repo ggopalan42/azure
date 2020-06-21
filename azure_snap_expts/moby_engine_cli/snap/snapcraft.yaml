@@ -1,0 +1,68 @@
+name: az-moby-engine-cli-306
+version: '3.0.6'
+summary: Moby engine and CLI from Microsoft binary
+description: 
+  Later
+
+architectures:
+  - build-on: amd64
+    run-on: amd64
+
+grade: devel
+confinement: devmode
+
+base: core18
+
+passthrough:
+  layout:
+    /etc/docker:
+      bind: $SNAP_DATA/etc/docker
+
+apps:
+  docker:    # this is moby-cli in parts
+    command: usr/bin/docker
+    environment:
+      DOCKER_HOST: unix://$SNAP_COMMON/run/docker.sock
+    plugs:
+      - network
+
+  dockerd:    # this is moby-engine in parts
+    # command: usr/bin/dockerd
+    command: bin/dockerd-wrapper.sh
+    daemon: simple
+    plugs:
+      - network
+      - network-bind
+      - docker-support
+      - firewall-control
+    sockets:
+      docker-socket:
+        listen-stream: $SNAP_COMMON/run/docker.sock
+
+
+parts:
+  moby-engine:  # This corresponds to dockerd in apps
+    plugin: dump
+    source:
+      - on amd64: https://packages.microsoft.com/ubuntu/18.04/prod/pool/main/m/moby-engine/moby-engine_3.0.6_amd64.deb
+    after: [wrapper-scripts]
+
+  moby-cli:   # This corresponds to docker in apps
+    plugin: dump
+    source:
+      - on amd64: https://packages.microsoft.com/ubuntu/18.04/prod/pool/main/m/moby-cli/moby-cli_3.0.6_amd64.deb
+
+  wrapper-scripts:
+    plugin: dump
+    source: local-assets
+    stage-packages:
+      - mount
+    stage:
+      - bin/dockerd-wrapper.sh
+      - bin/go-build-helper.sh
+      - config/daemon.json
+    prime:
+      - bin/dockerd-wrapper.sh
+      - bin/go-build-helper.sh
+      - config/daemon.json
+
